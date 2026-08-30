@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Market News — TradeX{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+  <div>
+    <h1 style="font-size: 20px; font-weight: 800; color: var(--text-main);">📰 Market News</h1>
+    <p style="font-size: 12px; color: var(--text-muted);">Live macro events and market-moving headlines.</p>
+  </div>
+</div>
+
+{% if events %}
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    {% for ev in events %}
+      <div class="card" style="padding: 18px 22px; display: flex; align-items: flex-start; gap: 18px; border-left: 4px solid
+        {% if ev.impact == 'HIGH' %}var(--color-bear){% elif ev.impact == 'MEDIUM' %}#f97316{% else %}#64748b{% endif %};">
+
+        <!-- Impact Badge -->
+        <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 2px;">
+          {% if ev.impact == 'HIGH' %}
+            <span style="font-size: 18px;">🔴</span>
+            <span style="font-size: 10px; font-weight: 700; color: var(--color-bear); text-transform: uppercase;">HIGH</span>
+          {% elif ev.impact == 'MEDIUM' %}
+            <span style="font-size: 18px;">🟠</span>
+            <span style="font-size: 10px; font-weight: 700; color: #f97316; text-transform: uppercase;">MED</span>
+          {% else %}
+            <span style="font-size: 18px;">🟡</span>
+            <span style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">LOW</span>
+          {% endif %}
+        </div>
+
+        <!-- News Content -->
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px;">
+            <span class="mono" style="font-size: 11px; color: var(--text-dim);">{{ ev.time_str }}</span>
+            <span style="font-size: 11px; font-weight: 700; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; padding: 1px 6px; color: var(--text-muted);">{{ ev.currency }}</span>
+          </div>
+          <div style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">{{ ev.title }}</div>
+          <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">{{ ev.headline_news }}</div>
+          {% if ev.actual or ev.forecast %}
+            <div style="display: flex; gap: 16px; margin-top: 8px;">
+              {% if ev.forecast %}
+                <span style="font-size: 12px; color: var(--text-dim);">Forecast: <strong class="mono" style="color: var(--text-main);">{{ ev.forecast }}</strong></span>
+              {% endif %}
+              {% if ev.previous %}
+                <span style="font-size: 12px; color: var(--text-dim);">Previous: <strong class="mono" style="color: var(--text-main);">{{ ev.previous }}</strong></span>
+              {% endif %}
+              {% if ev.actual %}
+                <span style="font-size: 12px; color: var(--text-dim);">Actual: <strong class="mono bull">{{ ev.actual }}</strong></span>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Inject Shock Button -->
+        <div style="flex-shrink: 0; padding-top: 4px;">
+          <button class="tag-chip" style="font-size: 11px; padding: 5px 10px; background: rgba(99,102,241,0.1); color: #818cf8; border-color: rgba(99,102,241,0.3); white-space: nowrap;"
+            onclick="fetch('/api/news/shock', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ headline: '{{ ev.headline_news }}', factor: {% if ev.impact == 'HIGH' %}2.5{% else %}1.2{% endif %} })
+            }).then(r => r.json()).then(() => { alert('Volatility shock injected! Check the Dashboard chart.'); });">
+            ⚡ Inject
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card" style="padding: 48px; text-align: center; color: var(--text-muted);">
+    <div style="font-size: 40px; margin-bottom: 12px;">📭</div>
+    <div style="font-size: 15px; font-weight: 600;">No news events available right now.</div>
+    <div style="font-size: 13px; margin-top: 6px;">Events will appear here as the market simulation progresses.</div>
+  </div>
+{% endif %}
+
+{% endblock %}
