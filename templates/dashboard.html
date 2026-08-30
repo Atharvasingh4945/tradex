@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — TradeX Terminal{% endblock %}
+
+{% block content %}
+<!-- Top Metrics Stat Cards -->
+<div class="grid-4-col">
+  <div class="card stat-card">
+    <span class="stat-label">Net Worth</span>
+    <span class="stat-value mono">${{ "{:,.2f}".format(net_worth) }}</span>
+    <span class="stat-change {% if unrealized_pnl >= 0 %}bull{% else %}bear{% endif %}">
+      {{ "+" if unrealized_pnl >= 0 else "" }}${{ "{:,.2f}".format(unrealized_pnl) }} Unrealized P&L
+    </span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">Available Cash</span>
+    <span class="stat-value mono" id="dashboard-cash-display">${{ "{:,.2f}".format(current_user.cash_balance) }}</span>
+    <span class="stat-change" style="color: var(--text-muted);">
+      {{ "{:.1f}".format((current_user.cash_balance / net_worth * 100) if net_worth > 0 else 100) }}% Liquidity
+    </span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">Holdings Value</span>
+    <span class="stat-value mono">${{ "{:,.2f}".format(holdings_value) }}</span>
+    <span class="stat-change" style="color: var(--text-muted);">
+      {{ positions|length }} Open Position{% if positions|length != 1 %}s{% endif %}
+    </span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">Daily Max Loss Limit</span>
+    <span class="stat-value mono">${{ "{:,.2f}".format(current_user.daily_max_loss) }}</span>
+    <span class="stat-change" style="color: var(--color-warn);">
+      Max Risk: {{ current_user.max_risk_per_trade_pct }}% / trade
+    </span>
+  </div>
+</div>
+
+<!-- Main Split Trading Terminal -->
+<div class="grid-2-col">
+  <!-- Left: TradingView Chart Terminal -->
+  <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+    <div class="chart-header-controls" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span id="chart-active-symbol" style="font-size: 16px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-main);">NVDA</span>
+        <span style="font-size: 12px; color: var(--text-muted);">1-Sec Real-Time Candles</span>
+      </div>
+
+      <!-- Indicators Section -->
+      <div class="indicators-group">
+        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Indicators:</span>
+        <button class="btn-indicator active ema9" id="btn-ind-ema9" onclick="toggleIndicator('ema9')">EMA 9</button>
+        <button class="btn-indicator active ema21" id="btn-ind-ema21" onclick="toggleIndicator('ema21')">EMA 21</button>
+        <button class="btn-indicator active vwap" id="btn-ind-vwap" onclick="toggleIndicator('vwap')">VWAP</button>
+        <button class="btn-indicator" id="btn-ind-volume" onclick="toggleIndicator('volume')">Volume</button>
+      </div>
+
+      <!-- Live Status Badge -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span class="badge-bull" style="font-size: 11px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #00e676; box-shadow: 0 0 8px #00e676;"></span>
+          1s Live Ticks
+        </span>
+      </div>
+    </div>
+
+
+
+    <div class="chart-container" id="tv-chart-viewport"></div>
+  </div>
+
+  <!-- Right: Pro Order Execution Dock -->
+  <div class="card order-dock">
+    <div class="card-header" style="margin-bottom: 8px;">
+      <h2 class="card-title">⚡ Order Execution Dock</h2>
+      <span class="badge-bull">Live Instant</span>
+    </div>
+
+    <!-- Buy / Sell Selector Tabs -->
+    <div class="order-tabs">
+      <button class="order-tab active-buy" id="tab-order-buy">BUY (Long)</button>
+      <button class="order-tab" id="tab-order-sell">SELL (Close)</button>
+    </div>
+
+    <!-- Asset Selection -->
+    <div class="form-group">
+      <label class="form-label">
+        <span>Asset Symbol</span>
+        <span class="mono" id="order-dock-current-price" style="color: var(--text-main); font-weight: 700;">$884.50</span>
+      </label>
+      <select id="order-symbol-select" class="form-control">
+        {% for stock in stocks %}
+          <option value="{{ stock.symbol }}" {% if stock.symbol == 'NVDA' %}selected{% endif %}>
+            {{ stock.symbol }} — {{ stock.name }} (${{ "{:,.2f}".format(stock.price) }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Quantity & Sizing -->
+    <div class="form-group">
+      <label class="form-label">
+        <span>Quantity (Shares)</span>
+        <span style="font-size: 11px; color: var(--color-brand); cursor: pointer;" onclick="
+          const p = lastPrices[document.getElementById('order-symbol-select').value] || 100;
+          const maxShares = Math.floor({{ current_user.cash_balance }} / p);
+          document.getElementById('order-qty-input').value = Math.max(1, maxShares);
+          recalcOrderEstimate();
+        ">Max Buy</span>
+      </label>
+      <input type="number" id="order-qty-input" class="form-control" value="20" min="1">
+    </div>
+
+    <!-- Sizing & Risk Estimate -->
+    <div style="padding: 12px; background-color: var(--bg-input); border-radius: var(--radius-md); font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: var(--text-muted);">Estimated Total:</span>
+        <span class="mono" id="order-est-cost" style="font-weight: 700;">$17,690.00</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: var(--text-muted);">Account Risk %:</span>
+        <span class="mono" style="color: var(--color-brand); font-weight: 600;">~1.8% of Capital</span>
+      </div>
+    </div>
+
+    <!-- Execute Button -->
+    <button class="btn-order-execute btn-buy" id="btn-execute-order">
+      BUY NVDA
+    </button>
+
+    <p style="font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 4px;">
+      💡 Tip: Executing opens the instant 3-click journal to capture your psychological thesis.
+    </p>
+  </div>
+</div>
+
+<!-- Bottom Section: Watchlist & Open Positions -->
+<div class="grid-2-col">
+  <!-- Live Watchlist Table -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Live Market Watchlist</h2>
+        <span class="card-subtitle">Streaming 1-second price ticks</span>
+      </div>
+      <span class="badge-bull">1s Live</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="tradex-table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Name</th>
+            <th style="text-align: right;">Price</th>
+            <th style="text-align: right;">Change %</th>
+            <th style="text-align: center;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in stocks %}
+            <tr id="stock-row-{{ s.symbol }}">
+              <td>
+                <strong style="color: var(--color-brand); cursor: pointer;" onclick="switchSymbolChart('{{ s.symbol }}'); document.getElementById('order-symbol-select').value='{{ s.symbol }}'; recalcOrderEstimate();">
+                  {{ s.symbol }}
+                </strong>
+              </td>
+              <td style="color: var(--text-muted); font-size: 12px;">{{ s.name }}</td>
+              <td style="text-align: right; font-weight: 700;" class="mono" id="price-val-{{ s.symbol }}">
+                ${{ "{:,.2f}".format(s.price) }}
+              </td>
+              <td style="text-align: right; font-weight: 600;" class="mono {% if s.change >= 0 %}bull{% else %}bear{% endif %}" id="change-val-{{ s.symbol }}">
+                {{ "+" if s.change >= 0 else "" }}{{ "{:.2f}".format(s.change_pct) }}%
+              </td>
+              <td style="text-align: center;">
+                <button class="tag-chip" style="padding: 3px 8px; font-size: 11px;" onclick="
+                  switchSymbolChart('{{ s.symbol }}');
+                  document.getElementById('order-symbol-select').value='{{ s.symbol }}';
+                  recalcOrderEstimate();
+                ">
+                  Trade
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Active Open Positions Table -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Active Open Positions</h2>
+        <span class="card-subtitle">Real-time trailing P&L</span>
+      </div>
+      <span class="mono" id="open-positions-count" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">
+        {{ positions|length }} Open
+      </span>
+    </div>
+
+    <div id="positions-table-container">
+      {% if positions and positions|length > 0 %}
+        <div class="table-responsive">
+          <table class="tradex-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th style="text-align: right;">Qty</th>
+                <th style="text-align: right;">Avg Buy</th>
+                <th style="text-align: right;">Current</th>
+                <th style="text-align: right;">P&L ($)</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="positions-tbody">
+              {% for pos in positions %}
+                {% set curr = stock_price_map.get(pos.symbol, pos.avg_price) %}
+                {% set pnl = (curr - pos.avg_price) * pos.qty %}
+                {% set pnl_pct = ((curr - pos.avg_price) / pos.avg_price * 100) if pos.avg_price > 0 else 0 %}
+                <tr id="pos-row-{{ pos.symbol }}">
+                  <td><strong style="color: var(--text-main);">{{ pos.symbol }}</strong></td>
+                  <td style="text-align: right;" class="mono" id="pos-qty-{{ pos.symbol }}">{{ pos.qty }}</td>
+                  <td style="text-align: right;" class="mono" id="pos-avg-{{ pos.symbol }}">${{ "{:,.2f}".format(pos.avg_price) }}</td>
+                  <td style="text-align: right;" class="mono" id="pos-curr-{{ pos.symbol }}">${{ "{:,.2f}".format(curr) }}</td>
+                  <td style="text-align: right; font-weight: 700;" class="mono {% if pnl >= 0 %}bull{% else %}bear{% endif %}" id="pos-pnl-{{ pos.symbol }}">
+                    {{ "+" if pnl >= 0 else "" }}${{ "{:,.2f}".format(pnl) }} ({{ "+" if pnl_pct >= 0 else "" }}{{ "{:.2f}".format(pnl_pct) }}%)
+                  </td>
+                  <td style="text-align: center;">
+                    <button class="tag-chip" style="background: var(--color-bear-bg); color: var(--color-bear); border-color: var(--color-bear-border); padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer;" onclick="closeOpenPosition('{{ pos.symbol }}', {{ pos.qty }});">
+                      ⚡ Close
+                    </button>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);" id="empty-positions-placeholder">
+          <p style="font-size: 14px; margin-bottom: 8px;">No open positions.</p>
+          <p style="font-size: 12px; color: var(--text-dim);">Execute a trade on the order dock to start tracking live P&L.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initTradingViewChart('tv-chart-viewport', 'NVDA');
+  });
+</script>
+{% endblock %}
