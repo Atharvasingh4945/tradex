@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Journal — TradeX{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+  <div>
+    <h1 style="font-size: 20px; font-weight: 800; color: var(--text-main);">📅 Daily Journal & Calendar Heatmap</h1>
+    <p style="font-size: 12px; color: var(--text-muted);">TradeZella-style session reflections, calendar P&L, and on-demand AI review.</p>
+  </div>
+</div>
+
+<div class="grid-2-col">
+  <!-- Left: Calendar Heatmap Grid -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Monthly Trading Heatmap</h2>
+      <span class="mono" style="font-size: 12px; color: var(--text-muted);">Active Sessions</span>
+    </div>
+
+    <!-- Calendar Grid Simulation -->
+    <div class="calendar-grid">
+      {% for d in range(1, 29) %}
+        {% set day_str = "2026-08-{:02d}".format(d) %}
+        {% set matching_day = days | selectattr('date_str', 'equalto', day_str) | first %}
+        
+        <div class="calendar-day-box {% if matching_day %}{% if matching_day.daily_pnl > 0 %}green-day{% elif matching_day.daily_pnl < 0 %}red-day{% endif %}{% endif %}"
+             id="day-cell-{{ day_str }}"
+             style="cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;"
+             onclick="openJournalModal('{{ day_str }}');"
+             title="Click to view & write journal for {{ day_str }}">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--text-muted);">
+            <span>{{ d }}</span>
+            <span id="day-cell-count-{{ day_str }}">
+              {% if matching_day and matching_day.trade_count > 0 %}
+                {{ matching_day.trade_count }}T
+              {% endif %}
+            </span>
+          </div>
+          
+          <div style="font-size: 12px; font-weight: 700; text-align: right;" class="mono {% if matching_day and matching_day.daily_pnl >= 0 %}bull{% else %}bear{% endif %}" id="day-cell-pnl-{{ day_str }}">
+            {% if matching_day and (matching_day.daily_pnl != 0 or matching_day.trade_count > 0) %}
+              {{ "+" if matching_day.daily_pnl >= 0 else "" }}${{ "{:,.0f}".format(matching_day.daily_pnl) }}
+            {% else %}
+              <span style="font-size: 10px; color: var(--text-dim); text-align: center;">—</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div style="margin-top: 14px; display: flex; gap: 16px; font-size: 11px; color: var(--text-muted); justify-content: flex-end;">
+      <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: var(--color-bull-bg); border: 1px solid var(--color-bull-border); border-radius: 2px;"></span> Profit Day</span>
+      <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: var(--color-bear-bg); border: 1px solid var(--color-bear-border); border-radius: 2px;"></span> Loss Day</span>
+      <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: var(--bg-card-hover); border: 1px solid var(--border-color); border-radius: 2px;"></span> Inactive</span>
+    </div>
+  </div>
+
+  <!-- Right: Today's Reflection & On-Demand AI Coach -->
+  <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+    <div class="card-header" style="margin-bottom: 0;">
+      <div>
+        <h2 class="card-title">Session Reflection: <span class="mono" style="color: var(--color-brand);">{{ today_str }}</span></h2>
+        <span class="card-subtitle">Pre/Post-Market Notes</span>
+      </div>
+      <button class="btn-ai-action" id="btn-ask-ai-journal" data-date="{{ today_str }}">
+        <span>✨ Ask AI for Feedback</span>
+      </button>
+    </div>
+
+    <!-- Reflection Editor -->
+    <div class="form-group">
+      <label class="form-label">
+        <span>Today's Journal & Mindset Notes</span>
+        <span style="font-size: 11px; color: var(--text-muted);">Saved automatically</span>
+      </label>
+      <textarea id="daily-reflection-text" class="form-control" rows="5" placeholder="What went well today? Did you follow your risk limits and entry setups? Any moments of frustration or FOMO?">{{ today_journal.reflection_note if today_journal else '' }}</textarea>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 12px; color: var(--text-muted);">
+        Today's Trades: <strong>{{ today_trades|length }}</strong> | P&L: 
+        <strong class="mono {% if today_journal and today_journal.daily_pnl >= 0 %}bull{% else %}bear{% endif %}">
+          ${{ "{:,.2f}".format(today_journal.daily_pnl if today_journal else 0.0) }}
+        </strong>
+      </span>
+      <button class="btn-add-trade" id="btn-save-daily-notes" data-date="{{ today_str }}" style="margin-bottom: 0; padding: 6px 14px;">
+        Save Notes
+      </button>
+    </div>
+
+    <!-- On-Demand AI Feedback Output Container -->
+    <div id="ai-journal-feedback-container" style="display: {% if today_journal and today_journal.ai_feedback %}block{% else %}none{% endif %};">
+      {% if today_journal and today_journal.ai_feedback %}
+        <div style="margin-top: 10px; padding: 14px; background: var(--bg-card-hover); border-radius: var(--radius-md); border-left: 4px solid var(--color-brand); font-size: 12px;">
+          <div style="font-weight: 700; margin-bottom: 6px;">🤖 Saved AI Review:</div>
+          <p style="color: var(--text-muted);">{{ today_journal.ai_feedback }}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Interactive Day Journal Modal Window -->
+<div class="modal-backdrop" id="journal-day-modal">
+  <div class="modal-content" style="max-width: 620px; padding: 28px; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+      <div>
+        <h2 style="font-size: 18px; font-weight: 800; color: var(--text-main); margin-bottom: 2px;" id="modal-journal-title">
+          📅 Daily Journal & Session Reflection
+        </h2>
+        <span class="mono" style="font-size: 13px; color: var(--color-brand); font-weight: 700;" id="modal-journal-date-subtitle">
+          2026-08-01
+        </span>
+      </div>
+      <button onclick="closeJournalModal();" style="background: transparent; border: none; font-size: 24px; color: var(--text-muted); cursor: pointer; padding: 0 4px;">&times;</button>
+    </div>
+
+    <!-- Day Summary Header Stats (Editable) -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: var(--bg-table-header); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 16px;">
+      <div>
+        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 4px;">Trades Executed</label>
+        <input type="number" id="modal-day-trade-count" class="form-control mono" style="font-size: 15px; font-weight: 800; padding: 6px 10px; width: 100%; box-sizing: border-box;" min="0" value="0">
+      </div>
+      <div>
+        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 4px;">Win Count</label>
+        <input type="number" id="modal-day-win-count" class="form-control mono" style="font-size: 15px; font-weight: 800; padding: 6px 10px; color: var(--color-bull); width: 100%; box-sizing: border-box;" min="0" value="0">
+      </div>
+      <div>
+        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 4px;">Net P&L ($)</label>
+        <input type="number" step="0.01" id="modal-day-pnl" class="form-control mono" style="font-size: 15px; font-weight: 800; padding: 6px 10px; width: 100%; box-sizing: border-box;" value="0.00">
+      </div>
+    </div>
+
+
+
+    <!-- Journal & Mindset Textarea -->
+    <div class="form-group" style="margin-bottom: 16px;">
+      <label class="form-label" style="display: flex; justify-content: space-between;">
+        <span>Session Mindset & Execution Notes</span>
+        <span style="font-size: 11px; color: var(--text-muted);">Pre-market thesis & lessons</span>
+      </label>
+      <textarea id="modal-reflection-textarea" class="form-control" rows="5" placeholder="Write your pre-market setup thesis, emotions during trades, risk management notes, and lessons learned..."></textarea>
+    </div>
+
+    <!-- Modal Action Buttons -->
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px;">
+      <button class="btn-ai-action" id="btn-modal-ask-ai">
+        <span>✨ Ask AI for Session Review</span>
+      </button>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="tag-chip" onclick="closeJournalModal();" style="padding: 8px 14px; font-size: 13px;">Cancel</button>
+        <button class="btn-add-trade" id="btn-modal-save-journal" style="margin-bottom: 0; padding: 8px 16px;">
+          💾 Save Journal Entry
+        </button>
+      </div>
+    </div>
+
+    <!-- AI Review Container inside Modal -->
+    <div id="modal-ai-feedback-container" style="display: none;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/journal.js') }}"></script>
+{% endblock %}
+
