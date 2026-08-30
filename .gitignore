@@ -1,0 +1,24 @@
+# Environment & virtualenv
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Database & SQLite files
+instance/
+*.db
+*.sqlite3
+
+# Logs & OS metadata
+*.log
+.DS_Store
+Thumbs.db
+
+# Antigravity system logs
+.system_generated/
