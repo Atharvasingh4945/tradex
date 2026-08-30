@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — TradeX</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body style="display: flex; align-items: center; justify-content: center; background-color: var(--bg-app); min-height: 100vh;">
+
+<div class="card" style="width: 100%; max-width: 420px; padding: 32px; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);">
+    <svg width="52" height="52" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0; filter: drop-shadow(0 4px 14px rgba(56, 189, 248, 0.45)); margin-bottom: 12px;">
+      <rect x="2" y="2" width="96" height="96" rx="22" fill="#0b1120" stroke="#1e293b" stroke-width="3"/>
+      <line x1="15" y1="35" x2="85" y2="35" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <line x1="15" y1="65" x2="85" y2="65" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <line x1="22" y1="52" x2="22" y2="78" stroke="#ff1744" stroke-width="2"/>
+      <rect x="19" y="58" width="6" height="14" rx="1.5" fill="#ff1744"/>
+      <line x1="36" y1="42" x2="36" y2="72" stroke="#00e676" stroke-width="2"/>
+      <rect x="33" y="48" width="6" height="18" rx="1.5" fill="#00e676"/>
+      <line x1="50" y1="22" x2="50" y2="58" stroke="#00e676" stroke-width="2"/>
+      <rect x="47" y="28" width="6" height="24" rx="1.5" fill="#00e676"/>
+      <line x1="64" y1="26" x2="64" y2="52" stroke="#ff1744" stroke-width="2"/>
+      <rect x="61" y="32" width="6" height="16" rx="1.5" fill="#ff1744"/>
+      <path d="M15 62 Q 35 60, 50 38 T 85 45" stroke="#f97316" stroke-width="3" fill="none"/>
+      <path d="M15 68 Q 35 52, 50 32 T 85 38" stroke="#3b82f6" stroke-width="3.5" fill="none"/>
+    </svg>
+
+    <div>
+      <h1 style="font-size: 26px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1;">Trade<span style="color: #38bdf8;">X</span></h1>
+      <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Institutional Terminal & Journal</p>
+    </div>
+
+
+
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div style="padding: 10px 14px; border-radius: var(--radius-md); font-size: 13px; margin-bottom: 16px; 
+          {% if category == 'error' %}background: var(--color-bear-bg); color: var(--color-bear); border: 1px solid var(--color-bear-border);
+          {% else %}background: var(--color-bull-bg); color: var(--color-bull); border: 1px solid var(--color-bull-border);{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('login') }}" style="display: flex; flex-direction: column; gap: 16px;">
+    <div class="form-group">
+      <label class="form-label">Email or Username</label>
+      <input type="text" name="email" id="login-email" class="form-control" placeholder="trader@tradex.com" value="trader@tradex.com" required>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" name="password" id="login-password" class="form-control" placeholder="••••••••" value="tradex123" required>
+    </div>
+
+    <button type="submit" class="btn-add-trade" style="width: 100%; padding: 12px; font-size: 14px; margin-top: 8px;">
+      Log In to Terminal
+    </button>
+  </form>
+
+  <div style="margin-top: 20px; padding: 12px; background: var(--bg-card-hover); border-radius: var(--radius-md); font-size: 12px; text-align: center; color: var(--text-muted);">
+    Demo Account Ready: <strong>trader@tradex.com</strong> / <strong>tradex123</strong>
+  </div>
+
+  <div style="margin-top: 18px; text-align: center; font-size: 13px; color: var(--text-muted);">
+    Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--color-brand); font-weight: 600; text-decoration: none;">Sign up here</a>
+  </div>
+</div>
+
+</body>
+</html>
