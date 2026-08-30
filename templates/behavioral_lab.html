@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Behavioral Lab — TradeX{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+  <div>
+    <h1 style="font-size: 20px; font-weight: 800; color: var(--text-main);">🧠 Behavioral Lab & Trader Psychology</h1>
+    <p style="font-size: 12px; color: var(--text-muted);">AI diagnostic of your psychological biases, trader archetype, and actionable execution rules.</p>
+  </div>
+  <button class="btn-ai-action" id="btn-diagnose-psychology" onclick="triggerAIArchetypeDiagnosis()">
+    <span>✨ Analyze My Trader Profile</span>
+  </button>
+</div>
+
+<!-- Archetype Hero Banner -->
+<div class="ai-coach-banner" id="ai-diagnosis-card">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
+    <div>
+      <span class="badge-bull" style="background: rgba(99, 102, 241, 0.15); color: var(--color-brand); border-color: rgba(99, 102, 241, 0.3);">
+        Identified Trader Archetype
+      </span>
+      <h2 style="font-size: 22px; font-weight: 800; margin-top: 8px; color: var(--text-main);" id="diag-archetype-badge">
+        {{ profile.archetype }}
+      </h2>
+      <p style="font-size: 13px; color: var(--text-muted); max-width: 750px; margin-top: 6px;" id="diag-archetype-desc">
+        {{ profile.archetype_description }}
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 14px;">
+      <div style="text-align: right;">
+        <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Discipline Score</span>
+        <div class="mono" style="font-size: 22px; font-weight: 700; color: var(--color-brand);">
+          {{ profile.discipline_score }}/100
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Win Consistency</span>
+        <div class="mono" style="font-size: 22px; font-weight: 700; color: var(--color-bull);">
+          {{ profile.win_rate }}%
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Grid: Bias Radar & Diagnostic Scores -->
+<div class="grid-2-col">
+  <!-- Bias Radar Chart -->
+  <div class="card" style="height: 380px; display: flex; flex-direction: column;">
+    <div class="card-header">
+      <h2 class="card-title">Psychological Bias Radar</h2>
+      <span class="card-subtitle">Higher is better (100 = optimal)</span>
+    </div>
+    <div style="flex-grow: 1; position: relative;">
+      <canvas id="behavioralRadarCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Bias Score Breakdown -->
+  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+    <div class="card-header">
+      <h2 class="card-title">Cognitive Metrics</h2>
+      <span class="card-subtitle">Behavioral calculations</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+          <span>FOMO Score (Chasing Green Candles)</span>
+          <span class="mono {% if profile.fomo_score > 40 %}bear{% else %}bull{% endif %}">
+            {{ profile.fomo_score }}/100
+          </span>
+        </div>
+        <div style="height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden;">
+          <div style="height: 100%; width: {{ profile.fomo_score }}%; background: var(--color-bear);"></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+          <span>Disposition Bias (Holding Losers Longer)</span>
+          <span class="mono {% if profile.disposition_score > 40 %}bear{% else %}bull{% endif %}">
+            {{ profile.disposition_score }}/100
+          </span>
+        </div>
+        <div style="height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden;">
+          <div style="height: 100%; width: {{ profile.disposition_score }}%; background: var(--color-warn);"></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+          <span>Revenge Trading & Tilt Risk</span>
+          <span class="mono {% if profile.tilt_score > 30 %}bear{% else %}bull{% endif %}">
+            {{ profile.tilt_score }}/100
+          </span>
+        </div>
+        <div style="height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden;">
+          <div style="height: 100%; width: {{ profile.tilt_score }}%; background: var(--color-bear);"></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+          <span>Plan & Stop-Loss Adherence</span>
+          <span class="mono bull">{{ profile.discipline_score }}/100</span>
+        </div>
+        <div style="height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden;">
+          <div style="height: 100%; width: {{ profile.discipline_score }}%; background: var(--color-bull);"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 14px; padding: 10px; background: var(--bg-card-hover); border-radius: var(--radius-md); font-size: 11px; color: var(--text-muted);">
+      Avg Win Hold: <strong class="mono">{{ profile.avg_win_hold }}s</strong> | Avg Loss Hold: <strong class="mono">{{ profile.avg_loss_hold }}s</strong>
+    </div>
+  </div>
+</div>
+
+<!-- Actionable AI Rules: DOs & DON'Ts -->
+<div class="grid-2-col">
+  <!-- DOs Card -->
+  <div class="card" style="border-left: 4px solid var(--color-bull);">
+    <div class="card-header">
+      <h2 class="card-title" style="color: var(--color-bull);">🟢 WHAT TO DO (Actionable Rules)</h2>
+    </div>
+    <ul id="diag-dos-list" style="list-style: none; padding: 0; font-size: 13px;">
+      {% for prescription in profile.prescriptions %}
+        <li style="color: var(--color-bull); margin-bottom: 8px; font-weight: 500;">
+          ✓ {{ prescription }}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- DON'Ts Card -->
+  <div class="card" style="border-left: 4px solid var(--color-bear);">
+    <div class="card-header">
+      <h2 class="card-title" style="color: var(--color-bear);">🔴 WHAT NOT TO DO (Traps to Avoid)</h2>
+    </div>
+    <ul id="diag-donts-list" style="list-style: none; padding: 0; font-size: 13px;">
+      {% for mistake in profile.core_mistakes %}
+        <li style="color: var(--color-bear); margin-bottom: 8px; font-weight: 500;">
+          ⚠️ {{ mistake }}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/behavioral.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initBehavioralRadar({
+      fomo_score: {{ profile.fomo_score }},
+      disposition_score: {{ profile.disposition_score }},
+      tilt_score: {{ profile.tilt_score }},
+      discipline_score: {{ profile.discipline_score }},
+      win_rate: {{ profile.win_rate }}
+    });
+  });
+</script>
+{% endblock %}
