@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Progress Tracker & Reports — TradeX{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+  <div>
+    <h1 style="font-size: 20px; font-weight: 800; color: var(--text-main);">📈 Progress Tracker, Reports & Tableau</h1>
+    <p style="font-size: 12px; color: var(--text-muted);">Institutional quantitative metrics, capital settings, and Tableau visual analytics export.</p>
+  </div>
+  <a href="{{ url_for('export_tableau_csv') }}" class="btn-add-trade" style="margin-bottom: 0;">
+    📥 Download Tableau Dataset (.CSV)
+  </a>
+</div>
+
+<!-- Performance Reports Grid -->
+<div class="grid-4-col">
+  <div class="card stat-card">
+    <span class="stat-label">Win Rate</span>
+    <span class="stat-value mono bull">{{ profile.win_rate }}%</span>
+    <span class="stat-change" style="color: var(--text-muted);">
+      {{ profile.win_count }} Wins / {{ profile.loss_count }} Losses
+    </span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">Profit Factor</span>
+    <span class="stat-value mono {% if profile.profit_factor >= 1.5 %}bull{% else %}bear{% endif %}">
+      {{ profile.profit_factor }}
+    </span>
+    <span class="stat-change" style="color: var(--text-muted);">Gross Win / Gross Loss</span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">Risk/Reward Ratio</span>
+    <span class="stat-value mono">{{ profile.risk_reward_ratio }}:1</span>
+    <span class="stat-change" style="color: var(--text-muted);">
+      Avg Win: ${{ "{:,.0f}".format(profile.avg_win) }} | Avg Loss: ${{ "{:,.0f}".format(profile.avg_loss) }}
+    </span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">All-Time Net Return</span>
+    <span class="stat-value mono {% if all_time_pnl >= 0 %}bull{% else %}bear{% endif %}">
+      {{ "+" if all_time_pnl >= 0 else "" }}{{ "{:.2f}".format(all_time_pnl_pct) }}%
+    </span>
+    <span class="stat-change {% if all_time_pnl >= 0 %}bull{% else %}bear{% endif %}">
+      {{ "+" if all_time_pnl >= 0 else "" }}${{ "{:,.2f}".format(all_time_pnl) }}
+    </span>
+  </div>
+</div>
+
+<div class="grid-2-col">
+  <!-- Left: Risk Limits & Capital Configuration -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">🛡️ Risk Rules & Capital Settings</h2>
+        <span class="card-subtitle">Manage starting balance and account risk guardrails</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="form-group">
+        <label class="form-label">Starting Account Capital ($)</label>
+        <input type="number" id="setting-starting-cash" class="form-control" value="{{ current_user.starting_cash }}" step="1000">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Daily Max Loss Limit ($)</label>
+        <input type="number" id="setting-daily-max-loss" class="form-control" value="{{ current_user.daily_max_loss }}" step="100">
+        <span style="font-size: 11px; color: var(--text-dim);">If daily drawdown exceeds this, trading should stop for the day.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Max Risk Per Trade (%)</label>
+        <input type="number" id="setting-max-risk-pct" class="form-control" value="{{ current_user.max_risk_per_trade_pct }}" step="0.5">
+      </div>
+
+      <button class="btn-ai-action" style="align-self: flex-start;" onclick="
+        const cash = document.getElementById('setting-starting-cash').value;
+        const loss = document.getElementById('setting-daily-max-loss').value;
+        const risk = document.getElementById('setting-max-risk-pct').value;
+        
+        fetch('/api/progress/update_risk', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ starting_cash: cash, daily_max_loss: loss, max_risk_per_trade_pct: risk })
+        }).then(r => r.json()).then(d => {
+          alert('Risk limits and capital updated successfully!');
+          window.location.reload();
+        });
+      ">
+        Save Risk Settings ✓
+      </button>
+    </div>
+  </div>
+
+  <!-- Right: Tableau Analytics Integration Bridge -->
+  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">📊 Tableau & BI Visual Analytics</h2>
+          <span class="card-subtitle">One-click data pipeline</span>
+        </div>
+        <span class="badge-bull">Ready</span>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+        TradeX automatically formats all trade executions, holding times, emotion tags, MAE, MFE, and realized P&L with clean schemas ready for direct drag-and-drop into Tableau or PowerBI.
+      </p>
+
+      <div style="background: var(--bg-card-hover); padding: 14px; border-radius: var(--radius-md); font-size: 12px; margin-bottom: 16px;">
+        <div style="font-weight: 700; margin-bottom: 6px;">Included Tableau Schema Fields:</div>
+        <code class="mono" style="color: var(--color-brand); font-size: 11px; display: block; line-height: 1.6;">
+          Trade_ID, Timestamp, Date, Symbol, Side, Quantity, Execution_Price, Realized_PnL, Realized_PnL_Pct, Win_Loss_Flag, Holding_Duration_Seconds, Setup_Tag, Emotion_Tag, Confidence_Rating, MAE_Dollars, MFE_Dollars
+        </code>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+      <a href="{{ url_for('export_tableau_csv') }}" class="btn-add-trade" style="flex: 1; text-decoration: none; text-align: center; margin-bottom: 0;">
+        📥 Download CSV for Tableau
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
