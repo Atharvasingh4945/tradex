@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}TradeX — Professional Trading Terminal & Behavioral Journal{% endblock %}</title>
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  
+  <!-- TradingView & Chart.js CDNs -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <a href="{{ url_for('dashboard') }}" class="brand-logo" style="text-decoration: none; padding: 0 4px 20px 4px; display: flex; align-items: center; gap: 11px;">
+      <!-- TradeX Chart & Trendline Vector Logo -->
+      <svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0; filter: drop-shadow(0 4px 14px rgba(56, 189, 248, 0.45));">
+        <rect x="2" y="2" width="96" height="96" rx="22" fill="#0b1120" stroke="#1e293b" stroke-width="3"/>
+        <line x1="15" y1="35" x2="85" y2="35" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <line x1="15" y1="65" x2="85" y2="65" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="3 3"/>
+        
+        <!-- Candlesticks -->
+        <line x1="22" y1="52" x2="22" y2="78" stroke="#ff1744" stroke-width="2"/>
+        <rect x="19" y="58" width="6" height="14" rx="1.5" fill="#ff1744"/>
+        <line x1="36" y1="42" x2="36" y2="72" stroke="#00e676" stroke-width="2"/>
+        <rect x="33" y="48" width="6" height="18" rx="1.5" fill="#00e676"/>
+        <line x1="50" y1="22" x2="50" y2="58" stroke="#00e676" stroke-width="2"/>
+        <rect x="47" y="28" width="6" height="24" rx="1.5" fill="#00e676"/>
+        <line x1="64" y1="26" x2="64" y2="52" stroke="#ff1744" stroke-width="2"/>
+        <rect x="61" y="32" width="6" height="16" rx="1.5" fill="#ff1744"/>
+
+        <!-- EMA Curves -->
+        <path d="M15 62 Q 35 60, 50 38 T 85 45" stroke="#f97316" stroke-width="3" fill="none"/>
+        <path d="M15 68 Q 35 52, 50 32 T 85 38" stroke="#3b82f6" stroke-width="3.5" fill="none"/>
+      </svg>
+
+      <div>
+        <div style="font-size: 19px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; color: var(--text-main);">Trade<span style="color: #38bdf8;">X</span></div>
+        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;">Terminal</div>
+      </div>
+    </a>
+
+
+
+
+
+    <button class="btn-add-trade" onclick="document.getElementById('quick-trade-modal').classList.add('active');">
+      <span style="font-size: 16px;">+</span> Add Trade
+    </button>
+
+    <ul class="nav-menu">
+      <li class="nav-item {% if active_tab == 'dashboard' %}active{% endif %}">
+        <a href="{{ url_for('dashboard') }}">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+      </li>
+
+      <li class="nav-item {% if active_tab == 'trades' %}active{% endif %}">
+        <a href="{{ url_for('trades') }}">
+          <span class="nav-icon">⚡</span>
+          <span>Trades</span>
+        </a>
+      </li>
+
+      <li class="nav-item {% if active_tab == 'journal' %}active{% endif %}">
+        <a href="{{ url_for('journal') }}">
+          <span class="nav-icon">📅</span>
+          <span>Daily Journal</span>
+        </a>
+      </li>
+
+      <li class="nav-item {% if active_tab == 'behavioral_lab' %}active{% endif %}">
+        <a href="{{ url_for('behavioral_lab') }}">
+          <span class="nav-icon">🧠</span>
+          <span>Behavioral Lab</span>
+          <span class="badge-new">AI</span>
+        </a>
+      </li>
+
+      <li class="nav-item {% if active_tab == 'playbooks' %}active{% endif %}">
+        <a href="{{ url_for('playbooks') }}">
+          <span class="nav-icon">📘</span>
+          <span>Playbooks</span>
+        </a>
+      </li>
+
+      <li class="nav-item {% if active_tab == 'progress_tracker' %}active{% endif %}">
+        <a href="{{ url_for('progress_tracker') }}">
+          <span class="nav-icon">📈</span>
+          <span>Progress Tracker</span>
+        </a>
+      </li>
+
+      <li class="nav-item {% if active_tab == 'news' %}active{% endif %}">
+        <a href="{{ url_for('news') }}">
+          <span class="nav-icon">📰</span>
+          <span>News & Calendar</span>
+        </a>
+      </li>
+
+      <li class="nav-item {% if active_tab == 'settings' %}active{% endif %}">
+        <a href="{{ url_for('settings') }}">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings</span>
+        </a>
+      </li>
+    </ul>
+
+    <!-- User Profile Footer in Sidebar -->
+    <div class="user-profile-widget">
+      <div class="user-info">
+        <div class="user-avatar">{{ current_user.username[:1].upper() if current_user.is_authenticated else 'U' }}</div>
+        <div class="user-meta">
+          <span class="name">{{ current_user.username if current_user.is_authenticated else 'Trader' }}</span>
+          <span class="email mono" id="header-cash-balance">${{ "{:,.2f}".format(current_user.cash_balance) if current_user.is_authenticated else '100,000.00' }}</span>
+        </div>
+      </div>
+      <a href="{{ url_for('logout') }}" title="Logout" style="text-decoration: none; color: var(--text-dim); font-size: 16px;">⎋</a>
+    </div>
+  </aside>
+
+  <!-- Main Viewport -->
+  <div class="main-viewport">
+    <!-- Top Breaking News Bar -->
+    <div class="top-news-bar">
+      <div class="news-ticker-container">
+        <span class="news-pill">Live Feed</span>
+        <span class="news-ticker-text mono" id="top-news-headline">Market is open. Normal stochastic flow active.</span>
+      </div>
+      <div style="display: flex; gap: 16px; font-size: 11px; color: var(--text-muted);">
+        <span>🔴 High Impact Events Today: <strong>2</strong></span>
+        <span>Theme: <strong style="color: var(--color-brand);">Auto System</strong></span>
+      </div>
+    </div>
+
+    <!-- Page Body -->
+    <main class="content-wrapper">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<!-- Instant 3-Click Post-Trade Journaling Modal -->
+<div class="modal-backdrop" id="post-trade-modal">
+  <div class="modal-dialog">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main);">✨ Trade Journal Entry</h3>
+      <span style="font-size: 12px; color: var(--text-muted); cursor: pointer;" onclick="document.getElementById('post-trade-modal').classList.remove('active')">✕</span>
+    </div>
+    
+    <p id="post-trade-exec-info" class="mono" style="font-size: 13px; color: var(--color-bull); margin-bottom: 16px; font-weight: 600;">
+      Executed BUY 100 NVDA @ $884.50
+    </p>
+
+    <!-- Setup / Playbook Tag -->
+    <div class="form-group" style="margin-bottom: 14px;">
+      <label class="form-label">Strategy / Playbook Setup</label>
+      <div class="tag-chips-group" id="setup-tag-group">
+        <span class="tag-chip active" data-value="Dip Buy">📉 Dip Buy</span>
+        <span class="tag-chip" data-value="Breakout">🚀 Breakout</span>
+        <span class="tag-chip" data-value="VWAP Reversal">🔄 VWAP Reversal</span>
+        <span class="tag-chip" data-value="Support Bounce">🛡️ Support Bounce</span>
+        <span class="tag-chip" data-value="FOMO Chase">⚡ FOMO Chase</span>
+      </div>
+    </div>
+
+    <!-- Emotion Check-In -->
+    <div class="form-group" style="margin-bottom: 14px;">
+      <label class="form-label">Emotional Mindset Right Now</label>
+      <div class="tag-chips-group" id="emotion-tag-group">
+        <span class="tag-chip active" data-value="Calm">🧘 Calm / Planned</span>
+        <span class="tag-chip" data-value="FOMO/Excited">🚀 Excited / FOMO</span>
+        <span class="tag-chip" data-value="Anxious">😱 Anxious</span>
+        <span class="tag-chip" data-value="Boredom/Yolo">🎰 Bored / Yolo</span>
+      </div>
+    </div>
+
+    <!-- Target & Stop Loss Plan -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+      <div class="form-group">
+        <label class="form-label">Target Exit Price ($)</label>
+        <input type="number" step="0.01" id="post-trade-target" class="form-control" placeholder="e.g. 895.00">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Invalidation / Stop ($)</label>
+        <input type="number" step="0.01" id="post-trade-stop" class="form-control" placeholder="e.g. 870.00">
+      </div>
+    </div>
+
+    <!-- Thesis Notes -->
+    <div class="form-group" style="margin-bottom: 18px;">
+      <label class="form-label">Why did you make this trade? (Thesis)</label>
+      <textarea id="post-trade-notes" class="form-control" rows="2" placeholder="e.g. Bounced off 20 EMA with rising volume..."></textarea>
+    </div>
+
+    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <button class="order-tab" id="btn-skip-post-trade-journal" style="background: var(--bg-input);">Skip for now</button>
+      <button class="btn-ai-action" id="btn-save-post-trade-journal">Save to Journal ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add Trade Modal (Triggered by Sidebar Button) -->
+<div class="modal-backdrop" id="quick-trade-modal">
+  <div class="modal-dialog">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <h3 style="font-size: 16px; font-weight: 700;">+ Quick Add Trade</h3>
+      <span style="font-size: 14px; cursor: pointer;" onclick="document.getElementById('quick-trade-modal').classList.remove('active')">✕</span>
+    </div>
+    
+    <div class="form-group" style="margin-bottom: 12px;">
+      <label class="form-label">Asset Symbol</label>
+      <select id="quick-symbol-select" class="form-control">
+        <option value="NVDA">NVDA — NVIDIA Corp</option>
+        <option value="SPY">SPY — S&P 500 ETF</option>
+        <option value="TSLA">TSLA — Tesla Inc</option>
+        <option value="AAPL">AAPL — Apple Inc</option>
+        <option value="BYTE">BYTE — Byte Cloud Systems</option>
+        <option value="ALFA">ALFA — Alfa Robotics</option>
+        <option value="CRUX">CRUX — Crux Energy</option>
+        <option value="FIN">FIN — Finlay Bank</option>
+      </select>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+      <div class="form-group">
+        <label class="form-label">Side</label>
+        <select id="quick-side-select" class="form-control">
+          <option value="BUY">BUY (Long)</option>
+          <option value="SELL">SELL (Close/Short)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quantity</label>
+        <input type="number" id="quick-qty-input" class="form-control" value="25" min="1">
+      </div>
+    </div>
+
+    <button class="btn-buy btn-order-execute" style="margin-top: 10px;" onclick="
+      const sym = document.getElementById('quick-symbol-select').value;
+      const side = document.getElementById('quick-side-select').value;
+      const qty = parseInt(document.getElementById('quick-qty-input').value);
+      document.getElementById('quick-trade-modal').classList.remove('active');
+      fetch('/api/trade/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: sym, side: side, qty: qty })
+      }).then(r => r.json()).then(d => {
+        if(d.success) {
+          openPostTradeModal(sym, side, qty, 100);
+        } else {
+          alert(d.message);
+        }
+      });
+    ">
+      Execute Order
+    </button>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+<script src="{{ url_for('static', filename='js/terminal.js') }}"></script>
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>
