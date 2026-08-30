@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Trades Ledger — TradeX{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+  <div>
+    <h1 style="font-size: 20px; font-weight: 800; color: var(--text-main);">⚡ Trades Execution Ledger</h1>
+    <p style="font-size: 12px; color: var(--text-muted);">Complete history of all executions, holding durations, and psychological tags.</p>
+  </div>
+  <a href="{{ url_for('export_tableau_csv') }}" class="btn-ai-action" style="background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+    📥 Export Tableau CSV
+  </a>
+</div>
+
+<!-- Trades Summary Top Cards -->
+<div class="grid-4-col">
+  <div class="card stat-card">
+    <span class="stat-label">Total Executions</span>
+    <span class="stat-value mono">{{ trades|length }}</span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">Total Realized P&L</span>
+    {% set total_pnl = trades | sum(attribute='realized_pnl') %}
+    <span class="stat-value mono {% if total_pnl >= 0 %}bull{% else %}bear{% endif %}">
+      {{ "+" if total_pnl >= 0 else "" }}${{ "{:,.2f}".format(total_pnl) }}
+    </span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">Winning Trades</span>
+    {% set win_trades = trades | selectattr('realized_pnl', 'gt', 0) | list %}
+    <span class="stat-value mono bull">{{ win_trades|length }}</span>
+  </div>
+
+  <div class="card stat-card">
+    <span class="stat-label">Losing Trades</span>
+    {% set loss_trades = trades | selectattr('realized_pnl', 'lt', 0) | list %}
+    <span class="stat-value mono bear">{{ loss_trades|length }}</span>
+  </div>
+</div>
+
+<!-- Trades Table -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">All Executions</h2>
+    <span class="card-subtitle">Real-time synced</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="tradex-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Symbol</th>
+          <th>Side</th>
+          <th style="text-align: right;">Qty</th>
+          <th style="text-align: right;">Price</th>
+          <th style="text-align: right;">Realized P&L</th>
+          <th>Hold Time</th>
+          <th>Playbook Setup</th>
+          <th>Emotion Mindset</th>
+          <th>Confidence</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if trades and trades|length > 0 %}
+          {% for t in trades %}
+            <tr>
+              <td class="mono" style="font-size: 12px; color: var(--text-dim);">
+                {{ t.timestamp.strftime('%Y-%m-%d %H:%M:%S') if t.timestamp else '—' }}
+              </td>
+              <td><strong>{{ t.symbol }}</strong></td>
+              <td>
+                <span class="{% if t.side == 'BUY' %}badge-bull{% else %}badge-bear{% endif %}">
+                  {{ t.side }}
+                </span>
+              </td>
+              <td style="text-align: right;" class="mono">{{ t.qty }}</td>
+              <td style="text-align: right;" class="mono">${{ "{:,.2f}".format(t.price) }}</td>
+              <td style="text-align: right; font-weight: 700;" class="mono {% if t.realized_pnl > 0 %}bull{% elif t.realized_pnl < 0 %}bear{% else %}{% endif %}">
+                {% if t.realized_pnl != 0.0 %}
+                  {{ "+" if t.realized_pnl > 0 else "" }}${{ "{:,.2f}".format(t.realized_pnl) }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td class="mono" style="font-size: 12px; color: var(--text-muted);">
+                {% if t.holding_seconds and t.holding_seconds > 0 %}
+                  {{ t.holding_seconds }}s
+                {% else %}
+                  Open
+                {% endif %}
+              </td>
+              <td>
+                <span class="tag-chip" style="padding: 2px 8px; font-size: 11px;">
+                  {{ t.setup_tag or 'Discretionary' }}
+                </span>
+              </td>
+              <td>
+                <span style="font-size: 12px;">
+                  {% if 'FOMO' in (t.emotion_tag or '') %}🚀 FOMO
+                  {% elif 'Anxious' in (t.emotion_tag or '') %}😱 Anxious
+                  {% elif 'Bored' in (t.emotion_tag or '') %}🎰 Boredom
+                  {% else %}🧘 Planned{% endif %}
+                </span>
+              </td>
+              <td>
+                <span style="color: var(--color-warn); font-size: 12px;">
+                  {{ "★" * (t.confidence or 3) }}
+                </span>
+              </td>
+              <td style="font-size: 12px; color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ t.notes }}">
+                {{ t.notes if t.notes else '—' }}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="11" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+              No trades executed yet. Place an order on the Dashboard to start building your ledger.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
